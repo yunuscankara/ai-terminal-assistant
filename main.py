@@ -80,6 +80,7 @@ def show_help():
     print("remember - Bilgi kaydet")
     print("memory - Hatırlanan bilgileri göster")
     print("help - Komutları göster")
+    print("chat - Yerel yapay zekâ ile sohbet et")
     print("q - Çıkış")
 
 
@@ -190,17 +191,46 @@ def update_user():
 
 
 
-
 def load_memory():
-    with open("memory.json", "r") as file:
-        memory = json.load(file)
+    try:
+        with open("memory.json", "r", encoding="utf-8") as file:
+            memory = json.load(file)
+
+        # Beklenen veri yapısını kontrol et
+        if not isinstance(memory, dict):
+            raise ValueError("Hafıza dosyasının formatı geçersiz.")
+
+        if not isinstance(memory.get("notes"), list):
+            raise ValueError("Hafıza dosyasında notes listesi bulunamadı.")
+
         return memory
 
+    except FileNotFoundError:
+        print("Hafıza dosyası bulunamadı. Yeni hafıza oluşturuluyor.")
+
+        memory = {"notes": []}
+        save_memory(memory)
+
+        return memory
+
+    except json.JSONDecodeError:
+        print("Hafıza dosyası bozuk veya geçersiz JSON içeriyor.")
+        return {"notes": []}
 
 def save_memory(memory):
-    with open("memory.json", "w") as file:
-        json.dump(memory, file)
+    try:
+        with open("memory.json", "w", encoding="utf-8") as file:
+            json.dump(
+                memory,
+                file,
+                ensure_ascii=False,
+                indent=4
+            )
 
+    except OSError as error:
+        print(f"Hafıza kaydedilirken hata oluştu: {error}")
+
+        
 def remember():
     memory = load_memory()
 
@@ -251,6 +281,89 @@ def forget():
     except ValueError:
         print("Lütfen geçerli bir sayı gir.")
 
+conversation_history = []
+def chat():
+    print("AI sohbetine hoş geldin! Çıkmak için 'q' yaz.")
+
+    while True:
+        user_message = input("\nSen: ").strip()
+
+        if user_message.lower() == "q":
+            print("Sohbet sonlandırıldı.")
+            break
+
+        if not user_message:
+            print("Lütfen boş mesaj göndermeyin.")
+            continue
+
+        conversation_history.append({
+            "role": "user",
+            "content": user_message
+        })
+
+
+
+        try:
+
+            response = requests.post(
+
+                "http://localhost:11434/api/chat",
+
+                json={
+
+                    "model": "qwen2.5:3b",
+
+                    "messages": [
+
+                        {
+
+                            "role": "system",
+
+                            "content": (
+
+                                "Sen yardımcı bir yapay zekâ asistanısın. "
+
+                                "Her zaman Türkçe cevap ver. "
+
+                                "Kullanıcı başka bir dilde yazsa bile "
+
+                                "Türkçe cevap ver. "
+
+                                "Cevaplarını açık, anlaşılır ve doğal "
+
+                                "bir Türkçeyle oluştur."
+
+                            )
+
+                        },
+
+                        *conversation_history
+
+                    ],
+
+                    "stream": False
+
+                },
+
+                timeout=120
+
+            )
+
+            response.raise_for_status()
+
+            data = response.json()
+            answer = data["message"]["content"]
+
+            conversation_history.append({
+                "role": "assistant",
+                "content": answer
+            })
+
+            print(f"AI: {answer}")
+
+        except requests.exceptions.RequestException as error:
+            print(f"Bağlantı hatası: {error}")
+            conversation_history.pop()
 def main():
     show_help()
 
@@ -290,6 +403,9 @@ def main():
 
         elif command == "forget":
             forget()
+
+        elif command == "chat":
+            chat()    
 
         else:
             print("Bilinmeyen komut.")

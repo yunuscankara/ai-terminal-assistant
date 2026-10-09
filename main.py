@@ -2,22 +2,35 @@ import requests
 import json
 
 
+
+API_URL = "https://jsonplaceholder.typicode.com/users"
+
+
 def get_users():
     try:
-        response = requests.get(
-            "https://jsonplaceholder.typicode.com/users"
-        )
+        response = requests.get(API_URL, timeout=10)
         response.raise_for_status()
-        return response.json()
 
-    except requests.exceptions.RequestException:
-        print("Program Cevap vermiyor")
+        users = response.json()
+
+        if not isinstance(users, list):
+            print("API beklenmeyen bir yanıt döndürdü.")
+            return []
+
+        return users
+
+    except requests.exceptions.RequestException as error:
+        print(f"API bağlantı hatası: {error}")
+        return []
+
+    except ValueError as error:
+        print(f"API yanıtı okunamadı: {error}")
         return []
 
 
 def find_user(users, user_id):
     for user in users:
-        if user["id"] == user_id:
+        if user.get("id") == user_id:
             return user
 
     return None
@@ -26,6 +39,10 @@ def find_user(users, user_id):
 def show_email():
     users = get_users()
 
+    if not users:
+        print("Kullanıcı bilgileri alınamadı.")
+        return
+
     try:
         user_id = int(input("Kullanıcı ID: "))
     except ValueError:
@@ -35,7 +52,7 @@ def show_email():
     user = find_user(users, user_id)
 
     if user:
-        print("Email:", user["email"])
+        print("Email:", user.get("email", "E-posta bulunamadı."))
     else:
         print("Kullanıcı bulunamadı.")
 
@@ -43,12 +60,20 @@ def show_email():
 def show_users():
     users = get_users()
 
+    if not users:
+        print("Gösterilecek kullanıcı bulunamadı.")
+        return
+
     for user in users:
-        print(user["name"])
+        print(user.get("name", "İsimsiz kullanıcı"))
 
 
 def show_user():
     users = get_users()
+
+    if not users:
+        print("Kullanıcı bilgileri alınamadı.")
+        return
 
     try:
         user_id = int(input("Kullanıcı ID: "))
@@ -59,42 +84,51 @@ def show_user():
     user = find_user(users, user_id)
 
     if user:
-        print("İsim:", user["name"])
-        print("Email:", user["email"])
-        print("Telefon:", user["phone"])
-        print("Şehir:", user["address"]["city"])
+        print("İsim:", user.get("name", "Bilinmiyor"))
+        print("Email:", user.get("email", "Bilinmiyor"))
+        print("Telefon:", user.get("phone", "Bilinmiyor"))
+
+        address = user.get("address") or {}
+        print("Şehir:", address.get("city", "Bilinmiyor"))
     else:
         print("Kullanıcı bulunamadı.")
 
 
 def show_help():
-    print("=== AI Terminal Assistant ===")
-    print("Komutlar:")
-    print("users - Kullanıcıları getir")
-    print("user - Kullanıcı bilgisi getir")
-    print("email - Kullanıcı emailini getir")
-    print("add - Yeni kullanıcı ekle")
-    print("delete - Kullanıcı sil")
-    print("update - Kullanıcı güncelle")
-    print("forget - Hafızadan bilgi sil")
-    print("remember - Bilgi kaydet")
-    print("memory - Hatırlanan bilgileri göster")
-    print("help - Komutları göster")
-    print("chat - Yerel yapay zekâ ile sohbet et")
-    print("q - Çıkış")
-
+    print("\n=== AI Terminal Assistant ===")
+    print("users    - Kullanıcıları getir")
+    print("user     - Kullanıcı bilgisi getir")
+    print("email    - Kullanıcı e-postasını getir")
+    print("add      - Yeni kullanıcı ekleme isteği gönder")
+    print("delete   - Kullanıcı silme isteği gönder")
+    print("update   - Kullanıcı güncelleme isteği gönder")
+    print("remember - Hafızaya bilgi kaydet")
+    print("memory   - Kayıtlı bilgileri göster")
+    print("forget   - Hafızadan bilgi sil")
+    print("chat     - Yerel yapay zekâ ile sohbet et")
+    print("help     - Komutları göster")
+    print("q        - Programdan çık")
 
 
 def add_user():
-    name = input("İsim: ")
+    name = input("İsim: ").strip()
+
+    if not name:
+        print("İsim boş bırakılamaz.")
+        return
 
     try:
         age = int(input("Yaş: "))
+
+        if age <= 0:
+            print("Yaş sıfırdan büyük olmalıdır.")
+            return
+
     except ValueError:
         print("Yaş sadece sayı olmalıdır.")
         return
 
-    job = input("Meslek: ")
+    job = input("Meslek: ").strip()
 
     user = {
         "name": name,
@@ -104,68 +138,91 @@ def add_user():
 
     try:
         response = requests.post(
-            "https://jsonplaceholder.typicode.com/users",
-            json=user
+            API_URL,
+            json=user,
+            timeout=10
         )
+        response.raise_for_status()
 
-    except requests.exceptions.RequestException:
-        print("Program Cevap Vermiyor")
-        return
-
-    if response.status_code == 201:
-        print("Kullanıcı başarıyla eklendi")
+        print("Kullanıcı ekleme isteği başarılı.")
         print(response.json())
-    else:
-        print("Kullanıcı eklenmedi")
+
+    except requests.exceptions.RequestException as error:
+        print(f"Kullanıcı eklenemedi: {error}")
+
+    except ValueError as error:
+        print(f"Sunucu yanıtı okunamadı: {error}")
 
 
 def delete_user():
     try:
         user_id = int(input("Kullanıcı ID: "))
+
+        if user_id <= 0:
+            print("ID pozitif bir sayı olmalıdır.")
+            return
+
     except ValueError:
         print("ID sadece sayı olmalıdır.")
         return
 
     try:
         response = requests.delete(
-            f"https://jsonplaceholder.typicode.com/users/{user_id}"
+            f"{API_URL}/{user_id}",
+            timeout=10
         )
+        response.raise_for_status()
 
-    except requests.exceptions.RequestException:
-        print("Program Cevap Vermiyor")
-        return
+        print("Silme isteği başarılı.")
 
-    if response.status_code == 200:
-        print("Kullanıcı başarıyla silindi")
-    else:
-        print("Kullanıcı silinemedi")
+    except requests.exceptions.RequestException as error:
+        print(f"Kullanıcı silinemedi: {error}")
 
 
 def update_user():
     try:
         user_id = int(input("Kullanıcı ID: "))
+
+        if user_id <= 0:
+            print("ID pozitif bir sayı olmalıdır.")
+            return
+
     except ValueError:
         print("ID sadece sayı olmalıdır.")
         return
 
     users = get_users()
+
+    if not users:
+        print("Kullanıcı listesi alınamadı.")
+        return
+
     user = find_user(users, user_id)
 
     if not user:
         print("Kullanıcı bulunamadı.")
         return
 
-    name = input("Yeni isim: ")
+    name = input("Yeni isim: ").strip()
+
+    if not name:
+        print("İsim boş bırakılamaz.")
+        return
 
     try:
         age = int(input("Yaş: "))
+
+        if age <= 0:
+            print("Yaş sıfırdan büyük olmalıdır.")
+            return
+
     except ValueError:
         print("Yaş sadece sayı olmalıdır.")
         return
 
-    job = input("Meslek: ")
+    job = input("Meslek: ").strip()
 
-    user = {
+    updated_user = {
         "name": name,
         "age": age,
         "job": job
@@ -173,35 +230,48 @@ def update_user():
 
     try:
         response = requests.put(
-            f"https://jsonplaceholder.typicode.com/users/{user_id}",
-            json=user
+            f"{API_URL}/{user_id}",
+            json=updated_user,
+            timeout=10
         )
+        response.raise_for_status()
 
-    except requests.exceptions.RequestException:
-        print("Program Cevap Vermiyor")
-        return
-
-    if response.status_code == 200:
-        print("Kullanıcı başarıyla güncellendi")
+        print("Güncelleme isteği başarılı.")
         print(response.json())
-    else:
-        print("Kullanıcı güncellenmedi")
-        print("Status Code:", response.status_code)
-        print("Response:", response.text)
 
+    except requests.exceptions.RequestException as error:
+        print(f"Kullanıcı güncellenemedi: {error}")
+
+    except ValueError as error:
+        print(f"Sunucu yanıtı okunamadı: {error}")
+
+
+
+
+MEMORY_FILE = "memory.json"
 
 
 def load_memory():
     try:
-        with open("memory.json", "r", encoding="utf-8") as file:
+        with open(MEMORY_FILE, "r", encoding="utf-8") as file:
             memory = json.load(file)
 
-        # Beklenen veri yapısını kontrol et
         if not isinstance(memory, dict):
-            raise ValueError("Hafıza dosyasının formatı geçersiz.")
+            print("Hafıza dosyasının formatı geçersiz.")
+            print("Mevcut dosya korunuyor.")
+            return None
 
-        if not isinstance(memory.get("notes"), list):
-            raise ValueError("Hafıza dosyasında notes listesi bulunamadı.")
+        notes = memory.get("notes")
+
+        if not isinstance(notes, list):
+            print("Hafıza dosyasında notes listesi bulunamadı.")
+            print("Mevcut dosya korunuyor.")
+            return None
+
+        if not all(isinstance(note, str) for note in notes):
+            print("Hafıza dosyasında geçersiz notlar var.")
+            print("Mevcut dosya korunuyor.")
+            return None
 
         return memory
 
@@ -209,17 +279,26 @@ def load_memory():
         print("Hafıza dosyası bulunamadı. Yeni hafıza oluşturuluyor.")
 
         memory = {"notes": []}
-        save_memory(memory)
 
-        return memory
+        if save_memory(memory):
+            return memory
 
-    except json.JSONDecodeError:
-        print("Hafıza dosyası bozuk veya geçersiz JSON içeriyor.")
-        return {"notes": []}
+        print("Hafıza dosyası oluşturulamadı.")
+        return None
+
+    except json.JSONDecodeError as error:
+        print(f"Hafıza dosyası bozuk veya geçersiz JSON içeriyor: {error}")
+        print("Mevcut dosya korunuyor.")
+        return None
+
+    except OSError as error:
+        print(f"Hafıza dosyasına erişilemedi: {error}")
+        return None
+
 
 def save_memory(memory):
     try:
-        with open("memory.json", "w", encoding="utf-8") as file:
+        with open(MEMORY_FILE, "w", encoding="utf-8") as file:
             json.dump(
                 memory,
                 file,
@@ -227,36 +306,60 @@ def save_memory(memory):
                 indent=4
             )
 
-    except OSError as error:
-        print(f"Hafıza kaydedilirken hata oluştu: {error}")
+        return True
 
-        
+    except (OSError, TypeError, ValueError) as error:
+        print(f"Hafıza kaydedilirken hata oluştu: {error}")
+        return False
+
+
 def remember():
     memory = load_memory()
 
-    note = input("Hatırlanacak bilgi: ")
+    if memory is None:
+        print("Hafıza yüklenemedi. Bilgi kaydedilemedi.")
+        return
+
+    note = input("Hatırlanacak bilgi: ").strip()
+
+    if not note:
+        print("Boş bilgi kaydedilemez.")
+        return
 
     memory["notes"].append(note)
 
-    save_memory(memory)
+    if save_memory(memory):
+        print("Bilgi başarıyla kaydedildi.")
+    else:
+        print("Bilgi kaydedilemedi.")
 
-    print("Bilgi kaydedildi.")
 
 def show_memory():
     memory = load_memory()
+
+    if memory is None:
+        print("Hafıza görüntülenemedi.")
+        return
+
     notes = memory["notes"]
 
     if not notes:
         print("Henüz kayıtlı bilgi yok.")
-    else:
-        print("\nKayıtlı bilgiler:")
+        return
 
-        for index, note in enumerate(notes, start=1):
-            print(f"{index}. {note}")
+    print("\nKayıtlı bilgiler:")
+
+    for index, note in enumerate(notes, start=1):
+        print(f"{index}. {note}")
 
 
 def forget():
     memory = load_memory()
+
+    if memory is None:
+        print("Hafıza yüklenemedi. Silme işlemi yapılamadı.")
+        return
+
     notes = memory["notes"]
 
     if not notes:
@@ -271,17 +374,38 @@ def forget():
     try:
         choice = int(input("Silmek istediğin bilginin numarasını gir: "))
 
-        if 1 <= choice <= len(notes):
-            deleted_note = notes.pop(choice - 1)
-            save_memory(memory)
-            print(f"Bilgi silindi: {deleted_note}")
-        else:
-            print("Geçersiz numara girdin.")
-
     except ValueError:
         print("Lütfen geçerli bir sayı gir.")
+        return
+
+    if not 1 <= choice <= len(notes):
+        print("Geçersiz numara girdin.")
+        return
+
+    # Silmeden önce mevcut listeyi koru.
+    deleted_note = notes.pop(choice - 1)
+
+    if save_memory(memory):
+        print(f"Bilgi silindi: {deleted_note}")
+    else:
+        # Kaydetme başarısız olursa mevcut süreçteki listeyi geri yükle.
+        notes.insert(choice - 1, deleted_note)
+        print("Silme işlemi kaydedilemedi. Bilgi geri yüklendi.")
+
 
 conversation_history = []
+
+SYSTEM_MESSAGE = {
+    "role": "system",
+    "content": (
+        "Sen yardımcı bir yapay zekâ asistanısın. "
+        "Her zaman Türkçe cevap ver. "
+        "Kullanıcı başka bir dilde yazsa bile Türkçe cevap ver. "
+        "Cevaplarını açık, anlaşılır ve doğal bir Türkçeyle oluştur."
+    )
+}
+
+
 def chat():
     print("AI sohbetine hoş geldin! Çıkmak için 'q' yaz.")
 
@@ -301,58 +425,32 @@ def chat():
             "content": user_message
         })
 
-
-
         try:
-
             response = requests.post(
-
                 "http://localhost:11434/api/chat",
-
                 json={
-
                     "model": "qwen2.5:3b",
-
                     "messages": [
-
-                        {
-
-                            "role": "system",
-
-                            "content": (
-
-                                "Sen yardımcı bir yapay zekâ asistanısın. "
-
-                                "Her zaman Türkçe cevap ver. "
-
-                                "Kullanıcı başka bir dilde yazsa bile "
-
-                                "Türkçe cevap ver. "
-
-                                "Cevaplarını açık, anlaşılır ve doğal "
-
-                                "bir Türkçeyle oluştur."
-
-                            )
-
-                        },
-
+                        SYSTEM_MESSAGE,
                         *conversation_history
-
                     ],
-
                     "stream": False
-
                 },
-
                 timeout=120
-
             )
 
             response.raise_for_status()
-
             data = response.json()
-            answer = data["message"]["content"]
+
+            message = data.get("message")
+
+            if not isinstance(message, dict):
+                raise ValueError("Ollama beklenen yanıt formatını döndürmedi.")
+
+            answer = message.get("content")
+
+            if not isinstance(answer, str):
+                raise ValueError("Yapay zekâ yanıtı geçersiz.")
 
             conversation_history.append({
                 "role": "assistant",
@@ -362,8 +460,15 @@ def chat():
             print(f"AI: {answer}")
 
         except requests.exceptions.RequestException as error:
-            print(f"Bağlantı hatası: {error}")
+            print(f"Ollama bağlantı hatası: {error}")
             conversation_history.pop()
+
+        except (ValueError, KeyError) as error:
+            print(f"Yapay zekâ yanıtı işlenemedi: {error}")
+            conversation_history.pop()
+
+
+
 def main():
     show_help()
 
@@ -405,10 +510,10 @@ def main():
             forget()
 
         elif command == "chat":
-            chat()    
+            chat()
 
         else:
-            print("Bilinmeyen komut.")
+            print("Bilinmeyen komut. Komutları görmek için 'help' yaz.")
 
 
 if __name__ == "__main__":

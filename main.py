@@ -76,9 +76,12 @@ def show_help():
     print("add - Yeni kullanıcı ekle")
     print("delete - Kullanıcı sil")
     print("update - Kullanıcı güncelle")
+    print("forget - Hafızadan bilgi sil")
     print("remember - Bilgi kaydet")
+    print("memory - Hatırlanan bilgileri göster")
     print("help - Komutları göster")
     print("q - Çıkış")
+
 
 
 def add_user():
@@ -203,11 +206,50 @@ def remember():
 
     note = input("Hatırlanacak bilgi: ")
 
-    memory["note"] = note
+    memory["notes"].append(note)
 
     save_memory(memory)
 
     print("Bilgi kaydedildi.")
+
+def show_memory():
+    memory = load_memory()
+    notes = memory["notes"]
+
+    if not notes:
+        print("Henüz kayıtlı bilgi yok.")
+    else:
+        print("\nKayıtlı bilgiler:")
+
+        for index, note in enumerate(notes, start=1):
+            print(f"{index}. {note}")
+
+
+def forget():
+    memory = load_memory()
+    notes = memory["notes"]
+
+    if not notes:
+        print("Silinecek bir bilgi bulunmuyor.")
+        return
+
+    print("\nKayıtlı bilgiler:")
+
+    for index, note in enumerate(notes, start=1):
+        print(f"{index}. {note}")
+
+    try:
+        choice = int(input("Silmek istediğin bilginin numarasını gir: "))
+
+        if 1 <= choice <= len(notes):
+            deleted_note = notes.pop(choice - 1)
+            save_memory(memory)
+            print(f"Bilgi silindi: {deleted_note}")
+        else:
+            print("Geçersiz numara girdin.")
+
+    except ValueError:
+        print("Lütfen geçerli bir sayı gir.")
 
 def main():
     show_help()
@@ -242,6 +284,12 @@ def main():
 
         elif command == "remember":
             remember()
+
+        elif command == "memory":
+            show_memory()
+
+        elif command == "forget":
+            forget()
 
         else:
             print("Bilinmeyen komut.")
